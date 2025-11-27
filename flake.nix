@@ -29,7 +29,6 @@
             pkgs.rustfmt
             pkgs.libseccomp
             pkgs.gcc
-            pkgs.glibc.static
             pkgs.glibc
           ];
 

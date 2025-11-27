@@ -5,17 +5,17 @@ use crate::hostname::set_container_hostname;
 use crate::mounts::setmountpoint;
 use crate::namespaces::userns;
 use crate::syscalls::setsyscalls;
+
 use nix::sched::clone;
 use nix::sched::CloneFlags;
 use nix::sys::signal::Signal;
-use nix::unistd::execve;
-use nix::unistd::{close, Pid};
+use nix::unistd::{close, execve, Pid};
 use std::ffi::CString;
 
 const STACK_SIZE: usize = 1024 * 1024;
 fn setup_container_configurations(config: &ContainerOpts) -> Result<(), Errcode> {
     set_container_hostname(&config.hostname)?;
-    setmountpoint(&config.mount_dir)?;
+    setmountpoint(&config.mount_dir, &config.addpaths)?;
     userns(config.fd, config.uid)?;
     setcapabilities()?;
     setsyscalls()?;
@@ -32,7 +32,7 @@ fn child(config: ContainerOpts) -> isize {
     }
 
     if let Err(_) = close(config.fd) {
-        log::error!("Error while closing socket...");
+        log::error!("Error while closing socket ...");
         return -1;
     }
 
@@ -41,7 +41,6 @@ fn child(config: ContainerOpts) -> isize {
         config.path.to_str().unwrap(),
         config.argv
     );
-
     let retcode = match execve::<CString, CString>(&config.path, &config.argv, &[]) {
         Ok(_) => 0,
         Err(e) => {
@@ -73,6 +72,6 @@ pub fn generate_child_process(config: ContainerOpts) -> Result<Pid, Errcode> {
 
     match res {
         Ok(pid) => Ok(pid),
-        Err(_) => Err(Errcode::ChildProcessError(0)),
+        Err(_) => Err(Errcode::ChildProcessError(())),
     }
 }

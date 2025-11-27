@@ -1,23 +1,22 @@
 use std::fmt;
 use std::process::exit;
 
-use crate::container::MINIMAL_KERNEL_VERSION;
 // Allows to display a variant with the format {:?}
 #[derive(Debug)]
 // Contains all possible errors in our tool
 pub enum Errcode {
     ArgumentInvalid(&'static str),
-    NotSupported(u8),
-    SocketError(u8),
-    ContainerError(u8),
-    ChildProcessError(u8),
-    HostnameError(u8),
+    NotSupported(()),
+    SocketError(()),
+    ContainerError(()),
+    ChildProcessError(()),
+    HostnameError(()),
     RngError,
-    MountsError(u8),
-    NamespacesError(u8),
-    CapabilitiesError(u8),
-    SyscallsError(u8),
-    ResourcesError(u8),
+    MountsError(()),
+    NamespacesError(()),
+    CapabilitiesError(()),
+    SyscallsError(()),
+    ResourcesError(()),
 }
 
 impl Errcode {
@@ -36,12 +35,6 @@ impl fmt::Display for Errcode {
         // Define what behaviour for each variant of the enum
         match &self {
             Errcode::NotSupported(errtype) => match errtype {
-                0 => write!(
-                    f,
-                    "Minimal kernel version required: {}",
-                    MINIMAL_KERNEL_VERSION
-                ),
-                1 => write!(f, "Only x86_64 architecture is supported"),
                 _ => write!(f, "{:?} (unknown id)", self),
             },
 

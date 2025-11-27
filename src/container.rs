@@ -2,7 +2,8 @@ use crate::child::generate_child_process;
 use crate::cli::Args;
 use crate::config::ContainerOpts;
 use crate::errors::Errcode;
-
+use crate::mounts::clean_mounts;
+use crate::namespaces::handle_child_uid_map;
 use nix::sys::utsname::uname;
 use nix::sys::wait::waitpid;
 use nix::unistd::close;
@@ -28,6 +29,7 @@ impl Container {
 
     pub fn create(&mut self) -> Result<(), Errcode> {
         let pid = generate_child_process(self.config.clone())?;
+        handle_child_uid_map(pid, self.sockets.0)?;
         self.child_pid = Some(pid);
         log::debug!("Creation finished");
         Ok(())
@@ -35,7 +37,7 @@ impl Container {
 
     pub fn clean_exit(&mut self) -> Result<(), Errcode> {
         log::debug!("Cleaning container");
-
+        clean_mounts(&self.config.mount_dir)?;
         if let Err(e) = close(self.sockets.0) {
             log::error!("Unable to close write socket: {:?}", e);
             return Err(Errcode::SocketError(3));

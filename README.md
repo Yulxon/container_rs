@@ -1,4 +1,4 @@
 Writing a container in Rust.
 
 Reference:
-    https://litchipi.github.io/series/container_in_rust
+    https://litchipi.site/serie/containers_in_rust

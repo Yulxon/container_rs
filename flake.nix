@@ -6,25 +6,37 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+      ...
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         pkgs = import nixpkgs { inherit system; };
-      in {
+      in
+      {
         devShells.default = pkgs.mkShell {
           name = "rust-dev-shell";
 
           buildInputs = [
-	    pkgs.rustc # Provides rustc and cargo
+            pkgs.rustc # Provides rustc and cargo
             pkgs.rust-analyzer
             pkgs.clippy
             pkgs.rustfmt
+            pkgs.libseccomp
+            pkgs.gcc
+            pkgs.glibc.static
+            pkgs.glibc
           ];
 
           shellHook = ''
             echo "🦀 Rust dev environment is ready!"
           '';
         };
-      });
+      }
+    );
 }
-

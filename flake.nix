@@ -15,9 +15,7 @@
           name = "rust-dev-shell";
 
           buildInputs = [
-            pkgs.rustup
-            pkgs.cargo
-            pkgs.rustc
+	    pkgs.rustc # Provides rustc and cargo
             pkgs.rust-analyzer
             pkgs.clippy
             pkgs.rustfmt
@@ -25,7 +23,6 @@
 
           shellHook = ''
             echo "🦀 Rust dev environment is ready!"
-            rustup default stable
           '';
         };
       });

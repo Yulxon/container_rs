@@ -1,17 +1,17 @@
-use crate::errors::Errorcode;
+use crate::errors::Errcode;
 
+use nix::sys::socket::{recv, send, socketpair, AddressFamily, MsgFlags, SockFlag, SockType};
 use std::os::{fd::IntoRawFd, unix::io::RawFd};
-use nix::sys::socket::{socketpair, AddressFamily, SockType, SockFlag, send, MsgFlags, recv};
 
 pub fn generate_socketpair() -> Result<(RawFd, RawFd), Errcode> {
     match socketpair(
         AddressFamily::Unix,
         SockType::SeqPacket,
         None,
-        SockFlag::SOCK_CLOEXEC)
-    {
+        SockFlag::SOCK_CLOEXEC,
+    ) {
         Ok((a, b)) => Ok((a.into_raw_fd(), b.into_raw_fd())),
-        Err(_) => Err(Errcode::SocketError(0))
+        Err(_) => Err(Errcode::SocketError(0)),
     }
 }
 
@@ -30,5 +30,5 @@ pub fn recv_boolean(fd: RawFd) -> Result<bool, Errcode> {
         log::error!("Cannot receive boolean from socket: {:?}", e);
         return Err(Errcode::SocketError(2));
     }
-    Ok(date[0] == 1)
+    Ok(data[0] == 1)
 }

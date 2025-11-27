@@ -5,11 +5,14 @@ use crate::errors::Errcode;
 use crate::mounts::clean_mounts;
 use crate::namespaces::handle_child_uid_map;
 use crate::resources::{clean_cgroups, restrict_resources};
+
 use nix::sys::utsname::uname;
 use nix::sys::wait::waitpid;
 use nix::unistd::close;
 use nix::unistd::Pid;
+
 use std::os::unix::io::RawFd;
+use std::path::PathBuf;
 
 pub struct Container {
     sockets: (RawFd, RawFd),
@@ -19,7 +22,21 @@ pub struct Container {
 
 impl Container {
     pub fn new(args: Args) -> Result<Container, Errcode> {
-        let (config, sockets) = ContainerOpts::new(args.command, args.uid, args.mount_dir)?;
+        let mut addpaths = vec![];
+        for ap_pair in args.addpaths.iter() {
+            let mut pair = ap_pair.to_str().unwrap().split(":");
+            let frompath = PathBuf::from(pair.next().unwrap())
+                .canonicalize()
+                .expect("Cannot canonicalize path")
+                .to_path_buf();
+            let mntpath = PathBuf::from(pair.next().unwrap())
+                .strip_prefix("/")
+                .expect("Cannot strip prefix from path")
+                .to_path_buf();
+            addpaths.push((frompath, mntpath));
+        }
+        let (config, sockets) =
+            ContainerOpts::new(args.command, args.uid, args.mount_dir, addpaths)?;
 
         Ok(Container {
             sockets,
@@ -40,18 +57,19 @@ impl Container {
     pub fn clean_exit(&mut self) -> Result<(), Errcode> {
         log::debug!("Cleaning container");
         clean_mounts(&self.config.mount_dir)?;
+
         if let Err(e) = close(self.sockets.0) {
             log::error!("Unable to close write socket: {:?}", e);
-            return Err(Errcode::SocketError(3));
+            return Err(Errcode::SocketError(()));
         }
 
         if let Err(e) = close(self.sockets.1) {
             log::error!("Unable to close read socket: {:?}", e);
-            return Err(Errcode::SocketError(4));
+            return Err(Errcode::SocketError(()));
         }
 
         if let Err(e) = clean_cgroups(&self.config.hostname) {
-            log::error!("Cgroups cleaning faild: {}", e);
+            log::error!("Cgroups cleaning failed: {}", e);
             return Err(e);
         }
 
@@ -63,21 +81,21 @@ pub const MINIMAL_KERNEL_VERSION: f32 = 4.8;
 
 pub fn check_linux_version() -> Result<(), Errcode> {
     let Ok(host) = uname() else {
-        return Err(Errcode::NotSupported(0));
+        return Err(Errcode::NotSupported(()));
     };
     let release = host.release().to_string_lossy();
     log::debug!("Linux release: {}", release);
 
     if let Ok(version) = scan_fmt!(release.as_ref(), "{f}.{}", f32) {
         if version < MINIMAL_KERNEL_VERSION {
-            return Err(Errcode::NotSupported(1));
+            return Err(Errcode::NotSupported(()));
         }
     } else {
-        return Err(Errcode::ContainerError(0));
+        return Err(Errcode::ContainerError(()));
     }
 
     if host.machine() != "x86_64" {
-        return Err(Errcode::NotSupported(2));
+        return Err(Errcode::NotSupported(()));
     }
 
     Ok(())
@@ -107,7 +125,7 @@ pub fn wait_child(pid: Option<Pid>) -> Result<(), Errcode> {
         log::debug!("Waiting for child (pid {}) to finish", child_pid);
         if let Err(e) = waitpid(child_pid, None) {
             log::error!("Error while waiting for pid to finish: {:?}", e);
-            return Err(Errcode::ContainerError(1));
+            return Err(Errcode::ContainerError(()));
         }
     }
     Ok(())

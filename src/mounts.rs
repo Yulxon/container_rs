@@ -25,7 +25,7 @@ pub fn unmount_path(path: &PathBuf) -> Result<(), Errcode> {
         Ok(_) => Ok(()),
         Err(e) => {
             log::error!("Unable to umount {}: {}", path.to_str().unwrap(), e);
-            Err(Errcode::MountsError(0))
+            Err(Errcode::MountsError(()))
         }
     }
 }
@@ -39,7 +39,7 @@ pub fn delete_dir(path: &PathBuf) -> Result<(), Errcode> {
                 path.to_str().unwrap(),
                 e
             );
-            Err(Errcode::MountsError(1))
+            Err(Errcode::MountsError(()))
         }
     }
 }
@@ -49,7 +49,7 @@ pub fn create_directory(path: &PathBuf) -> Result<(), Errcode> {
     match create_dir_all(path) {
         Err(e) => {
             log::error!("Cannot create directory {}: {}", path.to_str().unwrap(), e);
-            Err(Errcode::MountsError(2))
+            Err(Errcode::MountsError(()))
         }
         Ok(_) => Ok(()),
     }
@@ -77,7 +77,7 @@ pub fn mount_directory(
             } else {
                 log::error!("Cannot remount {}: {}", mount_point.to_str().unwrap(), e);
             }
-            Err(Errcode::MountsError(3))
+            Err(Errcode::MountsError(()))
         }
     }
 }
@@ -85,7 +85,10 @@ pub fn mount_directory(
 use nix::mount::{mount, umount2, MntFlags, MsFlags};
 use nix::unistd::{chdir, pivot_root};
 use std::fs::remove_dir;
-pub fn setmountpoint(mount_dir: &PathBuf) -> Result<(), Errcode> {
+pub fn setmountpoint(
+    mount_dir: &PathBuf,
+    addpaths: &Vec<(PathBuf, PathBuf)>,
+) -> Result<(), Errcode> {
     log::debug!("Setting mount points ...");
     mount_directory(
         None,
@@ -105,18 +108,29 @@ pub fn setmountpoint(mount_dir: &PathBuf) -> Result<(), Errcode> {
         vec![MsFlags::MS_BIND, MsFlags::MS_PRIVATE],
     )?;
 
+    log::debug!("Mounting additionnal paths");
+    for (inpath, mntpath) in addpaths.iter() {
+        let outpath = new_root.join(mntpath);
+        create_directory(&outpath)?;
+        mount_directory(
+            Some(inpath),
+            &outpath,
+            vec![MsFlags::MS_PRIVATE, MsFlags::MS_BIND],
+        )?;
+    }
+
     log::debug!("Pivoting root");
     let old_root_tail = format!("oldroot.{}", random_string(6));
     let put_old = new_root.join(PathBuf::from(old_root_tail.clone()));
     create_directory(&put_old)?;
     if let Err(_) = pivot_root(&new_root, &put_old) {
-        return Err(Errcode::MountsError(4));
+        return Err(Errcode::MountsError(()));
     }
 
     log::debug!("Unmounting old root");
     let old_root = PathBuf::from(format!("/{}", old_root_tail));
     if let Err(_) = chdir(&PathBuf::from("/")) {
-        return Err(Errcode::MountsError(5));
+        return Err(Errcode::MountsError(()));
     }
     unmount_path(&old_root)?;
     delete_dir(&old_root)?;

@@ -46,12 +46,12 @@ pub fn setsyscalls() -> Result<(), Errcode> {
         }
 
         if let Err(_) = ctx.load() {
-            return Err(Errcode::SyscallsError(0));
+            return Err(Errcode::SyscallsError(()));
         }
 
         Ok(())
     } else {
-        Err(Errcode::SyscallsError(1))
+        Err(Errcode::SyscallsError(()))
     }
 }
 
@@ -62,13 +62,13 @@ fn refuse_if_comp(ctx: &mut Context, ind: u32, sc: &Syscall, biteq: u64) -> Resu
         &[Comparator::new(ind, Cmp::MaskedEq, biteq, Some(biteq))],
     ) {
         Ok(_) => Ok(()),
-        Err(_) => Err(Errcode::SyscallsError(2)),
+        Err(_) => Err(Errcode::SyscallsError(())),
     }
 }
 
 fn refuse_syscall(ctx: &mut Context, sc: &Syscall) -> Result<(), Errcode> {
     match ctx.set_action_for_syscall(Action::Errno(EPERM), *sc) {
         Ok(_) => Ok(()),
-        Err(_) => Err(Errcode::SyscallsError(3)),
+        Err(_) => Err(Errcode::SyscallsError(())),
     }
 }
